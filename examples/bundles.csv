@@ -1,0 +1,5 @@
+id,from,to,released_us,expires_us,bytes,priority
+science,lunar,earth,0,60000000,8000,1
+health,lunar,earth,0,15000000,1000,10
+image,lunar,earth,1000000,60000000,8000,1
+expired-image,lunar,earth,2000000,10000000,20000,1
