@@ -1,14 +1,10 @@
 # contact-router
 
-imagine a postal service where the roads only exist at scheduled times. the road to the moon relay opens at 2:00 and closes at 2:20. the relay's road home opens at 3:10. two of the roads share the same truck, so if one is busy the other waits. and every parcel has a deadline after which nobody wants it.
+space links run on a schedule. say a relay is reachable from 2:00 to 2:20, the downlink opens at 3:10, two contacts share one transmitter, and every bundle expires. there is no "path right now" to route over, only a calendar.
 
-that is a space network. links between spacecraft and ground stations appear when geometry allows and vanish when it does not. the internet's assumption, that a path exists right now, does not hold. data has to be stored, carried, and forwarded on a schedule, and the scarce thing is not bandwidth on paper but the actual minutes when a specific radio can actually talk.
+contact-router finds the earliest arrival for each bundle across that calendar and books the radio time, so two routes never hold the same transmitter.
 
-contact-router plans that delivery: it finds the earliest arrival for each bundle and books the radio time so two routes never claim the same transmitter at once.
-
-## what it does
-
-contact-router is a small C++20 planner for a network whose links appear only during scheduled contact windows. it routes a whole bundle, a unit of data, across those windows and reserves transmission time on each link. in a spacecraft network, aggregate link capacity is insufficient when the bundle, contact window, or shared radio is unavailable at the required time.
+contact-router is a small C++20 planner for a network whose links appear only during scheduled contact windows. it routes a whole bundle across those windows and reserves transmission time on each link. in a spacecraft network, aggregate link capacity is insufficient when the bundle, contact window, or shared radio is unavailable at the required time.
 
 a route is a sequence of stored bundles, waits, transmissions, and propagation delays. the planner models all four explicitly.
 
@@ -86,5 +82,3 @@ expired-image,no_route,,,
 there is no fragmentation, receiver-conflict model, buffer limit, retransmission, uncertain contact time, or full half-duplex radio model. a shared resource is one transmitter calendar. it is a planning simulator, not a Bundle Protocol implementation.
 
 the API is [router.hpp](include/contact/router.hpp); the search and commit code are in [router.cpp](src/router.cpp). reproduce the reservation plot with Matplotlib and `python examples/plot.py`. enable sanitizers with `-DCONTACT_SANITIZERS=ON -DCMAKE_BUILD_TYPE=Debug`. NASA's [delay/disruption tolerant networking overview](https://www.nasa.gov/communicating-with-missions/delay-disruption-tolerant-networking/) gives the broader store-and-forward context.
-
-the greedy planner is honest about being greedy. the interesting future work is the part a single shortest path cannot see: what one bundle's perfect route costs the next one.
