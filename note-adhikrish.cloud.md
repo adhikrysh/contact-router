@@ -1,8 +1,8 @@
 # contact-router
 
-routing in space is routing with a bus timetable. the relay is reachable from 2:00 to 2:20, the downlink opens at 3:10, two links share one radio, and your data has an expiry date. there's no "path right now", there's a calendar, and someone's already booked half of it.
+links in a space network exist only during scheduled contact windows, many of them share a transmitter, and data has a deadline. routing therefore can't assume a path exists right now; it has to plan across a schedule, and two routes that look feasible independently can both need the same radio at the same time.
 
-this finds the earliest arrival for each bundle across that calendar and reserves the radio time, so two routes never fight over one transmitter.
+contact-router computes the earliest arrival for each bundle over a contact plan and reserves transmitter time along the chosen route, so overlapping bookings on a shared radio are impossible by construction.
 
 ```text
 bundle -> stored at node -> first free slot that fits -> shared radio calendar -> arrival
@@ -10,15 +10,15 @@ bundle -> stored at node -> first free slot that fits -> shared radio calendar -
 
 ![Contact reservations](docs/reservations.png)
 
-## how
+## design
 
-it's an earliest-arrival search over contacts, where each contact has open and close times, a rate, a delay, and maybe a shared radio. one label per node is enough because storage is unlimited, waiting is free and calendars fill first-fit in time order, so showing up earlier never costs you an option. add buffers or energy costs and that stops being true.
+the search is an earliest-arrival label search over contacts, each with open and close times, data rate, propagation delay and an optional shared resource. one label per node is sufficient because storage is unlimited, waiting is free, and each resource calendar is filled first-fit in time order, so an earlier arrival never removes an option a later one would have had. buffer limits or energy costs would break that property and require a different search.
 
-everything is integer microseconds with overflow checks on every add, because floats and deadlines don't mix. search never touches the calendars. only once a full route exists does it copy them, book every hop and swap the copies in, so a failed search, a missed deadline or an allocation failure halfway books nothing. ties are deterministic, so shuffling the input rows doesn't change the answer.
+time is integer microseconds with an overflow check on every addition. the search never mutates a calendar: once a complete route is found, the router copies the calendars, books every hop, and swaps the copies in. a failed search, a missed deadline or an allocation failure partway through leaves the existing plan untouched. tie-breaking is deterministic, so the result doesn't depend on input row order.
 
 ## example
 
-in the lunar scenario, health data has priority, grabs the direct link and lands at 6.3 s. science can't fit in what's left of the first relay window, waits for the next one and lands at 44.3 s. the images get nothing.
+in the lunar scenario, health telemetry has priority, takes the direct link and arrives at 6.3 s. science data doesn't fit in the remainder of the first relay window, waits for the next one and arrives at 44.3 s. the image bundles have no feasible route left.
 
 ```text
 health,reserved,6300000,6300000,3
@@ -26,11 +26,11 @@ science,reserved,44300000,44300000,4;5
 image,no_route,,,
 ```
 
-it's greedy on purpose. each bundle takes its best route given what's already booked, which means one bundle's perfect route can ruin a later one's day. fixing that needs a joint objective, which is a different project.
+batch scheduling is greedy: each bundle gets its earliest arrival given existing bookings. that's deterministic and easy to reason about, but it doesn't optimise the batch as a whole, and one bundle's choice can block a cheaper alternative for a later one. a joint objective would be the next step.
 
-## tests
+## verification
 
-2,800 reservations checked against a brute-force path search and a microsecond-by-microsecond slot scan, plus shared radios, expiry edges, release, overflow, search limits and shuffled inputs.
+2,800 reservations checked against an independent exhaustive path search and a microsecond-by-microsecond slot scan, plus shared-transmitter conflicts, expiry and delay boundaries, route release, overflow, search limits and permuted inputs.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
@@ -38,4 +38,4 @@ ctest --test-dir build --output-on-failure
 ./build/contact-route examples/contacts.csv examples/bundles.csv
 ```
 
-no fragmentation, buffers, retransmission or fuzzy contact times. a planning sim, not a Bundle Protocol implementation. NASA's [DTN overview](https://www.nasa.gov/communicating-with-missions/delay-disruption-tolerant-networking/) has the bigger picture.
+not modelled: fragmentation, buffer limits, retransmission, uncertain contact times. it's a planning simulator rather than a bundle protocol implementation; nasa's [dtn overview](https://www.nasa.gov/communicating-with-missions/delay-disruption-tolerant-networking/) covers the wider context.
